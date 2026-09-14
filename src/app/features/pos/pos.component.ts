@@ -1,23 +1,36 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { CatalogoService } from '../../core/services/catalogo.service';
+import { CajaService } from '../../core/services/caja.service';
+import { AvisoService } from '../../core/services/aviso.service';
+import { NavComponent } from '../../core/navegacion/nav.component';
 import { PesajeComponent } from './pesaje.component';
-import { redondear, type ProductoCatalogo, type TicketItem } from '../../core/modelos/catalogo';
-
-type TipoAviso = 'ok' | 'info' | 'err';
+import {
+  redondear,
+  redondearPeso,
+  type ProductoCatalogo,
+  type TicketItem,
+} from '../../core/modelos/catalogo';
 
 @Component({
   selector: 'app-pos',
-  imports: [DecimalPipe, PesajeComponent],
+  imports: [DecimalPipe, RouterLink, NavComponent, PesajeComponent],
   templateUrl: './pos.component.html',
 })
 export class PosComponent {
   private readonly catalogo = inject(CatalogoService);
+  private readonly cajaService = inject(CajaService);
+  private readonly aviso = inject(AvisoService);
 
   protected readonly productos = this.catalogo.productos;
   protected readonly cargando = this.catalogo.cargando;
   protected readonly sinBackend = this.catalogo.sinBackend;
   protected readonly error = this.catalogo.error;
+
+  protected readonly estadoCaja = this.cajaService.estado;
+  protected readonly cajaConectada = this.cajaService.conectado;
+  protected readonly cajaAbierta = computed(() => this.estadoCaja()?.abierta === true);
 
   protected readonly categorias = [
     { slug: 'res', nombre: 'Res' },
@@ -29,8 +42,6 @@ export class PosComponent {
   protected readonly categoriaActiva = signal<string | null>(null);
   protected readonly ticket = signal<TicketItem[]>([]);
   protected readonly productoPesando = signal<ProductoCatalogo | null>(null);
-  protected readonly aviso = signal<{ texto: string; tipo: TipoAviso } | null>(null);
-  protected readonly oscuro = signal(false);
 
   protected readonly filtrados = computed(() => {
     const activa = this.categoriaActiva();
@@ -46,29 +57,13 @@ export class PosComponent {
     this.ticket().reduce((acc, i) => acc + i.subtotal, 0),
   );
 
-  private temporizadorAviso: ReturnType<typeof setTimeout> | undefined;
-
-  protected avisoClases(a: { texto: string; tipo: TipoAviso }): string {
-    const fondo =
-      a.tipo === 'ok' ? 'bg-oliva-700' : a.tipo === 'err' ? 'bg-buey-900' : 'bg-piedra-950';
-    return `fixed left-1/2 top-5 z-[70] -translate-x-1/2 animate-panel-in rounded-control px-4 py-2.5 text-sm font-medium shadow-premium text-piedra-50 ${fondo}`;
-  }
-
-  constructor() {
-    const guardado =
-      typeof localStorage !== 'undefined' && localStorage.getItem('corte-tema') === 'oscuro';
-    this.oscuro.set(guardado);
-    document.documentElement.classList.toggle('dark', guardado);
-    this.catalogo.suscribir();
-  }
-
   teclaCategoria(slug: string | null): void {
     this.categoriaActiva.set(slug);
   }
 
   tocarProducto(p: ProductoCatalogo): void {
     if (p.cantidad <= 0) {
-      this.avisar('Sin existencia', 'err');
+      this.aviso.mostrar('Sin existencia', 'err');
       return;
     }
     if (p.modo_venta === 'weight') {
@@ -80,6 +75,9 @@ export class PosComponent {
 
   agregarAlTicket(p: ProductoCatalogo, cantidad: number): void {
     if (cantidad <= 0) return;
+    const cantidadExacta = p.modo_venta === 'weight' ? redondearPeso(cantidad) : redondear(cantidad);
+    if (cantidadExacta <= 0) return;
+    const subtotal = redondear(p.precio * cantidadExacta);
     this.ticket.update((t) => {
       const idx = t.findIndex((i) => i.productoId === p.id);
       const nueva: TicketItem = {
@@ -88,16 +86,19 @@ export class PosComponent {
         modo_venta: p.modo_venta,
         medida: p.medida,
         precio: p.precio,
-        cantidad: redondear(cantidad),
-        subtotal: redondear(p.precio * cantidad),
+        cantidad: cantidadExacta,
+        subtotal,
       };
       if (idx < 0) return [...t, nueva];
       return t.map((item, i) =>
         i === idx
           ? {
               ...item,
-              cantidad: redondear(item.cantidad + cantidad),
-              subtotal: redondear(item.subtotal + nueva.subtotal),
+              cantidad:
+                p.modo_venta === 'weight'
+                  ? redondearPeso(item.cantidad + cantidadExacta)
+                  : redondear(item.cantidad + cantidadExacta),
+              subtotal: redondear(item.subtotal + subtotal),
             }
           : item,
       );
@@ -123,21 +124,15 @@ export class PosComponent {
     this.ticket.set([]);
   }
 
-  cobrar(): void {
-    if (this.ticket().length === 0) return;
-    this.avisar('Cobro listo · el registro de la venta llega en el Bloque 3', 'ok');
-  }
-
-  alternarOscuro(): void {
-    const proximo = !this.oscuro();
-    this.oscuro.set(proximo);
-    document.documentElement.classList.toggle('dark', proximo);
-    localStorage.setItem('corte-tema', proximo ? 'oscuro' : 'claro');
-  }
-
-  private avisar(texto: string, tipo: TipoAviso): void {
-    this.aviso.set({ texto, tipo });
-    clearTimeout(this.temporizadorAviso);
-    this.temporizadorAviso = setTimeout(() => this.aviso.set(null), 3200);
+  async cobrar(): Promise<void> {
+    const items = this.ticket().map((i) => ({ producto_id: i.productoId, cantidad: i.cantidad }));
+    if (items.length === 0) return;
+    const res = await this.cajaService.registrarVenta(items);
+    if (res.ok) {
+      this.ticket.set([]);
+      this.aviso.mostrar('Venta registrada · despacho y caja al día', 'ok');
+    } else {
+      this.aviso.mostrar(res.error ?? 'No se pudo registrar la venta', 'err');
+    }
   }
 }

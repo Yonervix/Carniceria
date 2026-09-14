@@ -1,0 +1,222 @@
+<div class="flex h-dvh flex-col bg-piedra-50 text-piedra-900">
+  <app-nav />
+
+  <main class="min-h-0 flex-1 overflow-y-auto">
+    <div class="mx-auto max-w-4xl px-5 pb-10 pt-6 lg:px-7">
+      <header>
+        <p class="label-mini">Turno del día</p>
+        <h1 class="mt-1 font-display text-2xl font-semibold tracking-tight text-piedra-950">
+          Caja
+        </h1>
+      </header>
+
+      @if (cargando()) {
+      <div class="mt-6 grid gap-3">
+        <div
+          class="h-28 animate-pulse rounded-panel border border-piedra-200/60 bg-piedra-100/40"
+        ></div>
+        <div
+          class="h-24 animate-pulse rounded-panel border border-piedra-200/60 bg-piedra-100/40"
+        ></div>
+      </div>
+      } @else if (sinBackend()) {
+      <div class="mx-auto mt-14 max-w-md text-center">
+        <p class="font-display text-xl font-semibold tracking-tight text-piedra-950">
+          Primera carga
+        </p>
+        <p class="mx-auto mt-2 max-w-[38ch] text-sm leading-relaxed text-piedra-500">
+          Conecta tu proyecto de Supabase para abrir, ver y cerrar la caja del día.
+        </p>
+      </div>
+      } @else if (!estado()) {
+      <section
+        class="mx-auto mt-12 max-w-md rounded-panel border border-piedra-200/70 bg-piedra-100/40 p-7 text-center shadow-premium-sm"
+      >
+        <span
+          class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-oliva-100 text-oliva-700"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M4 7h16M4 7l1.2 12.2a2 2 0 0 0 2 1.8h9.6a2 2 0 0 0 2-1.8L20 7M4 7l1.6-3.2h12.8L20 7"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </span>
+        <h2 class="mt-4 font-display text-xl font-semibold tracking-tight text-piedra-950">
+          Abrir la caja del día
+        </h2>
+        <p class="mx-auto mt-2 max-w-[34ch] text-sm leading-relaxed text-piedra-500">
+          Antes de cobrar desde el despacho es necesario abrir el turno.
+        </p>
+
+        <label class="mt-6 block text-left">
+          <span class="label-mini">Efectivo inicial</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            [value]="efectivoInicial()"
+            (input)="efectivoInicial.set($any($event.target).value)"
+            class="campo mt-2 text-center font-mono text-xl tabular-nums"
+          />
+        </label>
+
+        <button
+          (click)="abrir()"
+          class="mt-5 h-12 w-full rounded-control bg-oliva-700 font-display text-[15px] font-semibold text-piedra-50 shadow-total transition-[transform,background-color] duration-100 ease-soft hover:bg-oliva-600 active:scale-[0.98]"
+        >
+          Abrir caja
+        </button>
+      </section>
+      } @else if (estado(); as c) {
+      <section class="mt-6 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
+        <div class="rounded-panel border border-piedra-200/70 bg-piedra-100/40 p-5 shadow-premium-sm">
+          <div class="flex items-center justify-between">
+            <h2 class="font-display text-base font-semibold text-piedra-950">
+              Resumen del turno
+            </h2>
+            <span
+              class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
+              [class.border-oliva-300]="c.abierta"
+              [class.text-oliva-700]="c.abierta"
+              [class.border-piedra-300]="!c.abierta"
+              [class.text-piedra-600]="!c.abierta"
+            >
+              <span
+                class="h-1.5 w-1.5 rounded-full"
+                [class.bg-oliva-600]="c.abierta"
+                [class.bg-piedra-400]="!c.abierta"
+                aria-hidden="true"
+              ></span>
+              {{ c.abierta ? 'Caja abierta' : 'Caja cerrada' }}
+            </span>
+          </div>
+
+          <p class="mt-1 font-mono text-xs tabular-nums text-piedra-500">{{ c.fecha }}</p>
+
+          <div class="mt-4 grid grid-cols-3 gap-3">
+            <div>
+              <p class="label-mini">Efectivo inicial</p>
+              <p class="mt-1 font-mono text-lg font-medium tabular-nums text-piedra-900">
+                $ {{ c.efectivo_inicial | number: '1.2-2' }}
+              </p>
+            </div>
+            <div>
+              <p class="label-mini">Ventas</p>
+              <p class="mt-1 font-mono text-lg font-medium tabular-nums text-oliva-700">
+                $ {{ c.ventas_total | number: '1.2-2' }}
+              </p>
+            </div>
+            <div>
+              <p class="label-mini">Esperado</p>
+              <p class="mt-1 font-mono text-lg font-medium tabular-nums text-piedra-950">
+                $ {{ esperado() | number: '1.2-2' }}
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-5 border-t border-piedra-200/70 pt-4">
+            <p class="label-mini">Ventas registradas</p>
+            @if (ventasHoy().length === 0) {
+            <p
+              class="mt-3 rounded-control border border-dashed border-piedra-300 px-3 py-4 text-center text-xs text-piedra-500"
+            >
+              Sin ventas todavía.
+            </p>
+            } @else {
+            <ul class="mt-2 divide-y divide-piedra-200/70">
+              @for (v of ventasHoy(); track v.id) {
+              <li class="flex items-center justify-between py-2">
+                <span class="font-mono text-xs tabular-nums text-piedra-500">
+                  {{ v.created_at | date: 'HH:mm' }}
+                </span>
+                <span class="font-mono text-sm font-medium tabular-nums text-piedra-950">
+                  $ {{ v.subtotal | number: '1.2-2' }}
+                </span>
+              </li>
+              }
+            </ul>
+            }
+          </div>
+        </div>
+
+        <div class="rounded-panel border border-piedra-200/70 bg-piedra-100/40 p-5 shadow-premium-sm">
+          @if (c.abierta) {
+          <h2 class="font-display text-base font-semibold text-piedra-950">Cerrar turno</h2>
+          <p class="mt-1 text-xs leading-relaxed text-piedra-500">
+            Cuenta el efectivo físico y regístralo para cuadrar la caja.
+          </p>
+
+          <label class="mt-5 block">
+            <span class="label-mini">Efectivo contado</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              [value]="efectivoCierre()"
+              (input)="efectivoCierre.set($any($event.target).value)"
+              placeholder="0.00"
+              class="campo mt-2 text-center font-mono text-xl tabular-nums"
+            />
+          </label>
+
+          <div class="mt-4 space-y-1.5 font-mono text-sm tabular-nums">
+            <div class="flex items-center justify-between text-piedra-600">
+              <span>Esperado por caja</span>
+              <span>$ {{ esperado() | number: '1.2-2' }}</span>
+            </div>
+            <div class="flex items-center justify-between text-piedra-600">
+              <span>Contado</span>
+              <span>$ {{ cierreValido() ? (efectivoCierre() | number: '1.2-2') : '—' }}</span>
+            </div>
+            <div
+              class="mt-2 flex items-center justify-between border-t border-piedra-200/70 pt-2.5"
+              [class.text-oliva-700]="diferencia() >= 0"
+              [class.text-buey-800]="diferencia() < 0"
+            >
+              <span>Diferencia</span>
+              <span class="text-base font-medium">
+                @if (diferencia() >= 0) { + }$ {{ diferencia() | number: '1.2-2' }}
+              </span>
+            </div>
+          </div>
+
+          <button
+            (click)="cerrar()"
+            [disabled]="!cierreValido()"
+            class="mt-5 h-12 w-full rounded-control bg-oliva-700 font-display text-[15px] font-semibold text-piedra-50 shadow-total transition-[transform,background-color] duration-100 ease-soft hover:bg-oliva-600 active:scale-[0.98] disabled:opacity-35 disabled:shadow-none"
+          >
+            Cerrar caja
+          </button>
+          } @else {
+          <h2 class="font-display text-base font-semibold text-piedra-950">Turno cerrado</h2>
+          <div class="mt-4 space-y-1.5 font-mono text-sm tabular-nums">
+            <div class="flex items-center justify-between text-piedra-600">
+              <span>Esperado por caja</span>
+              <span>$ {{ esperado() | number: '1.2-2' }}</span>
+            </div>
+            <div class="flex items-center justify-between text-piedra-600">
+              <span>Efectivo contado</span>
+              <span>$ {{ (c.efectivo_final ?? 0) | number: '1.2-2' }}</span>
+            </div>
+            <div
+              class="mt-2 flex items-center justify-between border-t border-piedra-200/70 pt-2.5"
+              [class.text-oliva-700]="diferenciaFinal() >= 0"
+              [class.text-buey-800]="diferenciaFinal() < 0"
+            >
+              <span>Diferencia final</span>
+              <span class="text-base font-medium">
+                @if (diferenciaFinal() >= 0) { + }$ {{ diferenciaFinal() | number: '1.2-2' }}
+              </span>
+            </div>
+          </div>
+          }
+        </div>
+      </section>
+      }
+    </div>
+  </main>
+</div>

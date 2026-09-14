@@ -1,0 +1,393 @@
+<div class="flex h-dvh flex-col bg-piedra-50 text-piedra-900">
+  <app-nav />
+
+  <main class="min-h-0 flex-1 overflow-y-auto">
+    <div class="mx-auto max-w-5xl px-5 pb-10 pt-6 lg:px-7">
+      <header class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p class="label-mini">Stock en tiempo real</p>
+          <h1 class="mt-1 font-display text-2xl font-semibold tracking-tight text-piedra-950">
+            Inventario
+          </h1>
+        </div>
+        <div class="flex items-center gap-2">
+        @if (esJefe()) {
+        <button
+          (click)="abrirModal()"
+          class="flex h-10 items-center gap-2 rounded-control bg-buey-900 px-4 text-sm font-semibold text-piedra-50 shadow-premium transition-[transform,background-color] duration-150 ease-soft hover:bg-buey-800 active:scale-[0.98]"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M12 5v14M5 12h14"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          Producto
+        </button>
+        }
+        <a
+          routerLink="/mermas"
+          class="flex h-10 items-center gap-2 rounded-control border border-piedra-200 bg-piedra-100/60 px-4 text-sm font-medium text-piedra-700 transition-colors duration-150 ease-soft hover:bg-piedra-200"
+        >
+          Mermas y desposte
+        </a>
+      </div>
+      </header>
+
+      <section class="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div class="rounded-panel border border-piedra-200/70 bg-piedra-100/40 p-4">
+          <p class="label-mini">Productos activos</p>
+          <p class="mt-1 font-mono text-2xl font-medium tabular-nums text-piedra-950">
+            {{ productos().length | number: '1.0-0' }}
+          </p>
+        </div>
+        <div class="rounded-panel border border-piedra-200/70 bg-piedra-100/40 p-4">
+          <p class="label-mini">En stock mínimo</p>
+          <p class="mt-1 font-mono text-2xl font-medium tabular-nums text-buey-800">
+            {{ enMinimo() | number: '1.0-0' }}
+          </p>
+        </div>
+        <div class="rounded-panel border border-piedra-200/70 bg-piedra-100/40 p-4">
+          <p class="label-mini">Agotados</p>
+          <p class="mt-1 font-mono text-2xl font-medium tabular-nums text-buey-800">
+            {{ agotados() | number: '1.0-0' }}
+          </p>
+        </div>
+        <div class="rounded-panel border border-piedra-200/70 bg-piedra-100/40 p-4">
+          <p class="label-mini">Valor en vitrina</p>
+          <p class="mt-1 font-mono text-2xl font-medium tabular-nums text-piedra-950">
+            $ {{ valorVitrina() | number: '1.2-2' }}
+          </p>
+        </div>
+      </section>
+
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap gap-2">
+          @for (f of filtros; track f) {
+          <button
+            (click)="teclaFiltro(f)"
+            class="h-9 rounded-full border px-3.5 text-[13px] font-medium transition-all duration-150 ease-soft active:scale-[0.97]"
+            [class.bg-piedra-950]="filtro() === f"
+            [class.text-piedra-50]="filtro() === f"
+            [class.border-piedra-200]="filtro() !== f"
+            [class.bg-piedra-100/60]="filtro() !== f"
+            [class.text-piedra-700]="filtro() !== f"
+          >
+            {{ etiquetaFiltro(f) }}
+          </button>
+          }
+        </div>
+        <input
+          type="search"
+          placeholder="Buscar corte…"
+          (input)="buscar($any($event.target).value)"
+          class="h-10 w-full max-w-xs rounded-control border border-piedra-200 bg-piedra-100/50 px-3 text-sm text-piedra-900 placeholder-piedra-400 focus:border-buey-500 focus:outline-none"
+        />
+      </div>
+
+      <section class="mt-4">
+        @if (cargando()) {
+        <div class="grid gap-2">
+          @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+          <div class="h-16 animate-pulse rounded-panel border border-piedra-200/60 bg-piedra-100/40"></div>
+          }
+        </div>
+        } @else if (sinBackend()) {
+        <div class="mx-auto mt-14 max-w-md text-center">
+          <p class="font-display text-xl font-semibold tracking-tight text-piedra-950">
+            Primera carga
+          </p>
+          <p class="mx-auto mt-2 max-w-[38ch] text-sm leading-relaxed text-piedra-500">
+            Conecta tu proyecto de Supabase para ver el inventario en vivo desde
+            <span class="font-mono">inventario_vivo</span>.
+          </p>
+        </div>
+        } @else if (error()) {
+        <div class="mx-auto mt-14 max-w-md text-center">
+          <p class="font-display text-xl font-semibold tracking-tight text-buey-900">Sin acceso</p>
+          <p class="mx-auto mt-2 max-w-[38ch] text-sm leading-relaxed text-piedra-500">
+            {{ error() }}
+          </p>
+        </div>
+        } @else if (filtrados().length === 0) {
+        <div class="mx-auto mt-14 max-w-md text-center">
+          <p class="font-display text-xl font-semibold tracking-tight text-piedra-950">
+            Sin resultados
+          </p>
+          <p class="mx-auto mt-2 max-w-[38ch] text-sm leading-relaxed text-piedra-500">
+            Ajusta el filtro o la búsqueda para encontrar el corte.
+          </p>
+        </div>
+        } @else {
+        <div class="grid gap-2">
+          @for (p of filtrados(); track p.id) {
+          <div
+            class="flex items-center justify-between gap-4 rounded-panel border px-4 py-3 transition-colors duration-150 ease-soft"
+            [class.border-piedra-200/70]="!(p.en_minimo && p.cantidad > 0) && p.cantidad > 0"
+            [class.bg-piedra-100/40]="!(p.en_minimo && p.cantidad > 0) && p.cantidad > 0"
+            [class.border-buey-200]="p.en_minimo && p.cantidad > 0"
+            [class.bg-buey-50/70]="p.en_minimo && p.cantidad > 0"
+            [class.opacity-60]="p.cantidad <= 0"
+          >
+            <div class="flex min-w-0 items-center gap-3">
+              <span
+                class="h-2 w-2 shrink-0 rounded-full"
+                [class.bg-buey-700]="p.en_minimo && p.cantidad > 0"
+                [class.bg-buey-500]="p.cantidad <= 0"
+                [class.bg-piedra-300]="!(p.en_minimo && p.cantidad > 0) && p.cantidad > 0"
+                aria-hidden="true"
+              ></span>
+              <div class="min-w-0">
+                <p class="truncate font-display text-[15px] font-semibold text-piedra-950">
+                  {{ p.nombre }}
+                </p>
+                @if (p.ubicacion) {
+                <p class="mt-0.5 truncate text-xs text-piedra-500">{{ p.ubicacion }}</p>
+                }
+              </div>
+            </div>
+
+            <div class="flex shrink-0 items-center gap-5 lg:gap-8">
+              <div class="text-right">
+                <p class="label-mini">Existencia</p>
+                <p class="mt-1 font-mono text-sm font-medium tabular-nums text-piedra-900">
+                  @if (p.modo_venta === 'weight') {
+                  {{ p.cantidad | number: '1.3-3' }} {{ p.medida }}
+                  } @else {
+                  {{ p.cantidad | number: '1.0-0' }} u
+                  }
+                </p>
+              </div>
+              <div class="hidden text-right sm:block">
+                <p class="label-mini">Mínimo</p>
+                <p class="mt-1 font-mono text-xs tabular-nums text-piedra-500">
+                  @if (p.modo_venta === 'weight') {
+                  {{ p.minimo | number: '1.3-3' }} {{ p.medida }}
+                  } @else {
+                  {{ p.minimo | number: '1.0-0' }} u
+                  }
+                </p>
+              </div>
+              <div class="hidden text-right md:block">
+                <p class="label-mini">Precio</p>
+                <p class="mt-1 font-mono text-xs tabular-nums text-piedra-500">
+                  $ {{ p.precio | number: '1.2-2' }} /{{ p.modo_venta === 'weight' ? p.medida : 'u'
+                  }}
+                </p>
+              </div>
+              <span
+                class="rounded-full px-2.5 py-1 text-[11px] font-medium"
+                [class.bg-buey-900]="p.cantidad <= 0"
+                [class.text-piedra-50]="p.cantidad <= 0"
+                [class.bg-buey-100]="p.en_minimo && p.cantidad > 0"
+                [class.text-buey-800]="p.en_minimo && p.cantidad > 0"
+                [class.bg-piedra-200/70]="!p.en_minimo && p.cantidad > 0"
+                [class.text-piedra-600]="!p.en_minimo && p.cantidad > 0"
+              >
+                @if (p.cantidad <= 0) { Agotado } @else if (p.en_minimo) { En mínimo } @else { En
+                orden }
+              </span>
+            </div>
+          </div>
+          }
+        </div>
+        }
+      </section>
+    </div>
+  </main>
+
+  @if (modalAbierto()) {
+  <div
+    class="fixed inset-0 z-[50] bg-piedra-950/40 backdrop-blur-[2px]"
+    (click)="cerrarModal()"
+    aria-hidden="true"
+  ></div>
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="Nuevo producto"
+    class="fixed inset-x-0 bottom-0 z-[60] mx-auto max-w-lg rounded-t-panel border border-piedra-200 bg-piedra-50 p-6 shadow-premium-lg sm:rounded-panel"
+  >
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="label-mini">Alta de corte</p>
+        <h2 class="mt-0.5 font-display text-lg font-semibold tracking-tight text-piedra-950">
+          Nuevo producto
+        </h2>
+      </div>
+      <button
+        (click)="cerrarModal()"
+        aria-label="Cerrar"
+        class="flex h-9 w-9 items-center justify-center rounded-control text-piedra-400 transition-colors duration-150 ease-soft hover:bg-piedra-200 hover:text-piedra-900"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M6 6l12 12M18 6 6 18"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <form class="mt-4 space-y-3.5" (submit)="$event.preventDefault(); guardarAlta()">
+      <div>
+        <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-nombre"
+          >Nombre</label
+        >
+        <input
+          id="alt-nombre"
+          type="text"
+          placeholder="Ej. Lomo de res"
+          [value]="formulario().nombre"
+          (input)="campo('nombre', $any($event.target).value)"
+          class="campo"
+        />
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-cat"
+            >Categoría</label
+          >
+          <select
+            id="alt-cat"
+            [value]="formulario().categoriaSlug"
+            (change)="campo('categoriaSlug', $any($event.target).value)"
+            class="campo"
+          >
+            @for (c of categorias(); track c.slug) {
+            <option [value]="c.slug">{{ c.nombre }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-venta"
+            >Venta por</label
+          >
+          <select
+            id="alt-venta"
+            [value]="formulario().modoVenta"
+            (change)="cambiarModoVenta($any($event.target).value)"
+            class="campo"
+          >
+            <option value="unit">Unidad</option>
+            <option value="weight">Peso</option>
+          </select>
+        </div>
+      </div>
+
+      @if (formulario().modoVenta === 'weight') {
+      <div>
+        <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-medida"
+          >Medida</label
+        >
+        <select
+          id="alt-medida"
+          [value]="formulario().medida"
+          (change)="campo('medida', $any($event.target).value)"
+          class="campo"
+        >
+          <option value="kg">kg</option>
+          <option value="lb">lb</option>
+        </select>
+      </div>
+      }
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-precio"
+            >Precio venta</label
+          >
+          <input
+            id="alt-precio"
+            type="number"
+            min="0"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="$ 0.00"
+            [value]="formulario().precio"
+            (input)="campo('precio', $any($event.target).value)"
+            class="campo font-mono tabular-nums"
+          />
+        </div>
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-compra"
+            >Costo (opcional)</label
+          >
+          <input
+            id="alt-compra"
+            type="number"
+            min="0"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="$ 0.00"
+            [value]="formulario().precioCompra"
+            (input)="campo('precioCompra', $any($event.target).value)"
+            class="campo font-mono tabular-nums"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-cantidad"
+          >Existencia inicial</label
+        >
+        <input
+          id="alt-cantidad"
+          type="number"
+          min="0"
+          step="0.001"
+          inputmode="decimal"
+          placeholder="0"
+          [value]="formulario().cantidadInicial"
+          (input)="campo('cantidadInicial', $any($event.target).value)"
+          class="campo font-mono tabular-nums"
+        />
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-desc"
+          >Descripción (opcional)</label
+        >
+        <input
+          id="alt-desc"
+          type="text"
+          placeholder="Ej. Corte para asar"
+          [value]="formulario().descripcion"
+          (input)="campo('descripcion', $any($event.target).value)"
+          class="campo"
+        />
+      </div>
+
+      @if (errores()) {
+      <p class="rounded-control border border-buey-200 bg-buey-50/70 px-3 py-2.5 text-[13px] text-buey-900">
+        {{ errores() }}
+      </p>
+      }
+
+      <div class="flex gap-3">
+        <button
+          type="button"
+          (click)="cerrarModal()"
+          [disabled]="enviando()"
+          class="h-12 flex-1 rounded-control border border-piedra-200 text-sm font-medium text-piedra-700 transition-colors duration-150 ease-soft hover:bg-piedra-200 disabled:opacity-40"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          [disabled]="enviando()"
+          class="h-12 flex-[2] rounded-control bg-buey-900 font-display text-[15px] font-semibold text-piedra-50 shadow-premium transition-[transform,background-color,opacity] duration-100 ease-soft hover:bg-buey-800 active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+        >
+          {{ enviando() ? 'Guardando…' : 'Guardar producto' }}
+        </button>
+      </div>
+    </form>
+  </div>
+  }
+</div>

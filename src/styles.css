@@ -91,6 +91,18 @@
   .tecla {
     @apply flex h-16 select-none items-center justify-center rounded-control text-2xl font-medium text-piedra-900 transition-[transform,background-color] duration-100 ease-soft active:scale-[0.97] md:h-[72px];
   }
+
+  .nav-activo {
+    @apply bg-piedra-950 text-piedra-50;
+  }
+
+  .nav-activo:hover {
+    @apply bg-piedra-950 text-piedra-50;
+  }
+
+  .campo {
+    @apply h-11 w-full rounded-control border border-piedra-200 bg-piedra-100/50 px-3 text-[15px] text-piedra-900 placeholder-piedra-400 transition-colors duration-150 ease-soft focus:border-buey-500 focus:bg-piedra-50 focus:outline-none;
+  }
 }
 
 .dark body {

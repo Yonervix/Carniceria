@@ -1,0 +1,151 @@
+<div class="flex min-h-dvh items-center justify-center bg-piedra-50 px-4 py-10 text-piedra-900">
+  <div
+    class="pointer-events-none fixed inset-0"
+    style="background: radial-gradient(900px 420px at 12% -10%, rgba(92,29,29,0.08), transparent 60%), radial-gradient(700px 380px at 95% 110%, rgba(120,113,73,0.10), transparent 60%)"
+    aria-hidden="true"
+  ></div>
+
+  <div class="relative w-full max-w-sm">
+    <div class="mb-8 text-center">
+      <span
+        class="mx-auto flex h-12 w-12 items-center justify-center rounded-[14px] bg-buey-900 font-display text-xl font-semibold text-piedra-50 shadow-premium"
+      >
+        C
+      </span>
+      <h1 class="mt-4 font-display text-2xl font-semibold tracking-tight text-piedra-950">
+        CORTE
+      </h1>
+      <p class="mt-1 text-sm text-piedra-500">Carnicería boutique · punto de venta</p>
+    </div>
+
+    <div class="rounded-panel border border-piedra-200/70 bg-piedra-100/40 p-6 shadow-premium-sm">
+      <div class="flex items-center gap-1 rounded-[10px] bg-piedra-100/80 p-1">
+        <button
+          (click)="modo.set('crear'); error.set('')"
+          class="h-9 flex-1 rounded-[8px] text-[13px] font-medium transition-colors duration-150 ease-soft"
+          [class.bg-piedra-50]="modo() === 'crear'"
+          [class.text-piedra-900]="modo() === 'crear'"
+          [class.shadow-premium-sm]="modo() === 'crear'"
+          [class.text-piedra-500]="modo() !== 'crear'"
+        >
+          Registrarse
+        </button>
+        <button
+          (click)="modo.set('entrar'); error.set('')"
+          class="h-9 flex-1 rounded-[8px] text-[13px] font-medium transition-colors duration-150 ease-soft"
+          [class.bg-piedra-50]="modo() === 'entrar'"
+          [class.text-piedra-900]="modo() === 'entrar'"
+          [class.shadow-premium-sm]="modo() === 'entrar'"
+          [class.text-piedra-500]="modo() !== 'entrar'"
+        >
+          Entrar
+        </button>
+      </div>
+
+      <form class="mt-5 space-y-3.5" (submit)="$event.preventDefault(); guardar()">
+        @if (modo() === 'crear') {
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="c-nombre">Nombre</label>
+          <input
+            id="c-nombre"
+            type="text"
+            autocomplete="name"
+            placeholder="Tu nombre"
+            [value]="nombre()"
+            (input)="campo('nombre', $any($event.target).value)"
+            class="campo"
+          />
+        </div>
+        }
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="c-email">Correo</label>
+          <input
+            id="c-email"
+            type="email"
+            autocomplete="email"
+            placeholder="tucorreo@dominio.com"
+            [value]="email()"
+            (input)="campo('email', $any($event.target).value)"
+            class="campo"
+          />
+        </div>
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="c-password">Contraseña</label>
+          <input
+            id="c-password"
+            type="password"
+            autocomplete="new-password"
+            placeholder="Mínimo 6 caracteres"
+            [value]="password()"
+            (input)="campo('password', $any($event.target).value)"
+            class="campo"
+          />
+        </div>
+
+        @if (modo() === 'crear' && !existeJefe()) {
+        <label
+          class="flex cursor-pointer items-start gap-2.5 rounded-control border border-piedra-200/80 bg-piedra-100/40 p-3"
+        >
+          <input
+            type="checkbox"
+            [checked]="reclamar()"
+            (change)="reclamar.set($any($event.target).checked)"
+            class="mt-0.5 h-4 w-4 accent-[#5C1D1D]"
+          />
+          <span class="text-xs leading-relaxed text-piedra-600">
+            <span class="font-semibold text-piedra-800">Reclama el puesto de jefe</span>
+            <br />
+            Todavía no hay jefe. Solo la primera cuenta puede hacerlo.
+          </span>
+        </label>
+        }
+
+        @if (error()) {
+        <p
+          id="c-error"
+          class="rounded-control border border-buey-200 bg-buey-50/70 px-3 py-2.5 text-[13px] text-buey-900"
+        >
+          {{ error() }}
+        </p>
+        }
+
+        <button
+          type="submit"
+          [disabled]="enviando()"
+          class="h-12 w-full rounded-control bg-buey-900 font-display text-[15px] font-semibold text-piedra-50 shadow-premium transition-[transform,background-color,opacity] duration-100 ease-soft hover:bg-buey-800 active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+        >
+          {{ enviando() ? (modo() === 'crear' ? 'Creando cuenta…' : 'Entrando…') : modo() === 'crear'
+          ? 'Crear cuenta' : 'Entrar' }}
+        </button>
+      </form>
+
+      @if (modo() === 'crear') {
+      <p class="mt-4 text-center text-xs leading-relaxed text-piedra-500">
+        ¿Ya tienes cuenta?
+        <button
+          type="button"
+          (click)="electronica()"
+          class="ml-1 font-semibold text-buey-900 underline-offset-2 hover:underline"
+        >
+          Entra aquí
+        </button>
+      </p>
+      } @else {
+      <p class="mt-4 text-center text-xs leading-relaxed text-piedra-500">
+        ¿Aún no tienes cuenta?
+        <button
+          type="button"
+          (click)="electronica()"
+          class="ml-1 font-semibold text-buey-900 underline-offset-2 hover:underline"
+        >
+          Regístrate aquí
+        </button>
+      </p>
+      }
+    </div>
+
+    <p class="mt-6 text-center text-[11px] tracking-wide text-piedra-400">
+      Los datos viven en Supabase · stock en tiempo real
+    </p>
+  </div>
+</div>

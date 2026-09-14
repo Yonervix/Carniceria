@@ -27,3 +27,5 @@ export interface TicketItem {
 }
 
 export const redondear = (n: number): number => Math.round(n * 100) / 100;
+
+export const redondearPeso = (n: number): number => Math.round(n * 1000) / 1000;
