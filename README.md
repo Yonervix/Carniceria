@@ -46,89 +46,71 @@ corte/
 ├─ angular.json                    Builder application, fuentes Geist autohosted
 ├─ src/
 │  ├─ index.html                   Shell (lenguaje es, favicon)
-│  ├─ styles.css                   Base del sistema, dark overrides, .tecla/.chip/.nav-activo
+│  ├─ styles.css                   Base del sistema, dark, .tecla/.chip/.nav-activo, @media print
 │  ├─ environments/environment.ts  supabaseUrl + anonKey (en blanco hasta conectar)
 │  └─ app/
 │     ├─ app.ts                    Root: <router-outlet /> + <app-aviso />
-│     ├─ app.routes.ts             '' (POS) · /inventario · /mermas · /caja
+│     ├─ app.routes.ts             '' · /inventario · /caja · /cuentas · /mermas · /reportes · /acceso
 │     ├─ core/
-│     │  ├─ modelos/catalogo.ts    ProductoCatalogo, TicketItem, redondear, redondearPeso
-│     │  ├─ modelos/operaciones.ts CajaEstado, VentaRegistrada, MovimientoReciente, payloads
-│     │  ├─ servicios/supabase.service.ts    Cliente (null si no hay URL)
-│     │  ├─ servicios/catalogo.service.ts    Catálogo vivo (inventario_vivo) + Realtime
-│     │  ├─ servicios/caja.service.ts        Caja del día, ventas, RPCs abrir/cerrar/vender
-│     │  ├─ servicios/stock.service.ts       Merma, desposte, movimientos recientes
-│     │  ├─ servicios/aviso.service.ts       Toast global (ok/info/err)
-│     │  └─ navegacion/nav.component.ts      Marca, links, chip de caja, toggle tema
+│     │  ├─ modelos/               catalogo.ts (ProductoCatalogo, TicketItem) · operaciones.ts (payloads, historiales)
+│     │  ├─ utilidades/            tema.ts (dark mode) · negocio.ts (NEGOCIO: nombre/dirección/teléfono del recibo)
+│     │  ├─ servicios/             supabase · auth · catalogo · caja · stock · reportes · aviso
+│     │  ├─ componentes/           aviso.component.ts (toast global)
+│     │  ├─ guards/                sesion.guard.ts (sesionActiva, sesionInactiva, soloJefe)
+│     │  └─ navegacion/            nav.component.ts (enlaces por rol + chip de caja + tema)
 │     └─ features/
-│        ├─ pos/pos.component.*          Despacho táctil + ticket + pesaje
-│        ├─ pos/pesaje.component.*        Keypad Precio x Peso (3 decimales)
-│        ├─ inventario/inventario.*       Stock vivo con alertas buey
-│        ├─ mermas/mermas.*               Mermas + desposte + ledger
-│        └─ caja/caja.*                   Apertura, ventas y cierre del turno
+│        ├─ pos/                   Despacho táctil + ticket + pesaje + cobro (efectivo/digital/crédito)
+│        ├─ pos/pesaje.component.* Keypad Precio x Peso (3 decimales)
+│        ├─ caja/                  Apertura, ventas del día, reabrir, anular (jefe) y recibo por venta
+│        ├─ inventario/            Stock vivo, filtros, alta/edición de cortes (jefe) con existencia actual
+│        ├─ mermas/                Mermas + desposte + ledger (solo jefe)
+│        ├─ cuentas/               Clientes, saldos y abonos
+│        ├─ reportes/              Ventas/cortes/mermas del día-ayer-rango (solo jefe) + imprimir
+│        ├─ recibo/                Factura térmica (80mm) con folio, pagos, vuelto y reimpresión
+│        └─ acceso/                Login/register + "reclamar jefe" de la primera cuenta
 └─ supabase/
-   ├─ schema.sql                  Bloques 1-3 concatenados (idempotente)
-   └─ seed.sql                    Catálogo de demostración (15 cortes)
+   ├─ schema.sql                   Bloques 1-14 concatenados (idempotente)
+   ├─ seed.sql                     Catálogo de demostración (15 cortes)
+   └─ bloque5.sql … bloque14.sql   Bloques sueltos para proyectos ya existentes
 ```
 
 ---
 
-## 4. Lo que ya funciona (hecho)
+## 4. Lo que ya funciona (bloques completados)
 
 ### Bloque 1 — Estructura de datos
-- `profiles` (rol `jefe`/`carnicero`, autoperfil al crear usuario).
-- `categories` (res, cerdo, pollo, elaborados), `products` (`modo_venta weight|unit` con constraint de `medida kg|lb`).
-- `inventory` (`cantidad numeric(10,3)`, `stock_minimo`, `ubicacion`, autopory por trigger).
-- `inventory_movements` (ledger auditado con `saldo`).
+- `profiles` (rol `jefe`/`carnicero`, autoperfil al crear usuario), `categories`, `products` (`modo_venta weight|unit`, medida `kg|lb`).
+- `inventory` (`cantidad numeric(10,3)`, `stock_minimo`, `ubicacion`) y `inventory_movements` (ledger con `saldo`).
 - Vista `inventario_vivo` con `en_minimo` + Realtime en inventory/products.
 - RLS completa + RPC `ajustar_existencia` (solo jefe).
 
-### Bloque 2 — Módulo de caja / despacho táctil
-- Catálogo de dos columnas con pills de categoría, precio mono `/kg`, badge báscula|caja, indicador buey en stock mínimo y agotados atenuados.
-- Flujo de pesaje: tocar un producto `weight` abre un keypad 3x4 con display masivo mono, total vivo `Peso x Precio`, máx. 3 decimales, bloqueo si excede stock y atajos de teclado.
-- Ticket lateral con fusion de líneas, subtotales mono y total Oliva `text-4xl tabular`.
-- Estados: skeleton, "Primera carga" (sin backend), sin acceso, catálogo vacío.
-- `seed.sql` con 15 cortes demo (Picaña en mínimo, Costilla agotada).
-- Verificado: `ng build` compila sin errores.
+### Bloques 2-3 — Despacho, mermas y caja
+- Catálogo táctil con pills de categoría, precio mono `/kg`, badge báscula|caja, stock mínimo y agotados.
+- Pesaje con keypad (Peso x Precio, 3 decimales, tope de stock).
+- Ticket lateral con fusión de líneas y total Oliva; cobro con mezcla de pagos (efectivo/tarjeta/transferencia) y venta a crédito.
+- Mermas y desposte con ledger; caja diaria (apertura/cierre, esperado vs contado).
+- `registrar_venta` / `registrar_merma` / `registrar_desposte` por RPC, con `aplicar_movimiento` central.
+
+### Bloques 4-7 — Acceso, catálogo administrativo, clientes y permisos
+- Login/register con Supabase Auth; la **primera cuenta** se reclama jefe vía `reclamar_jefe()`; rutas protegidas por guard con rol.
+- Alta de productos (jefe) con categorías, precio/costo, cantidad inicial y foto.
+- Clientes con saldo y abonos (`/cuentas`); venta a crédito suma al saldo y no acepta pagos.
+- Edición de producto (jefe): nombre, costo, foto, mínimo, ubicación y **existencia actual** (ajuste con movimiento).
+- Permisos: carnicero vende, ve inventario, ve/abona cuentas y abre/cierra/reabre caja; jefe además edita/da de alta, anula ventas, ve historial de caja, mermas y reportes.
+
+### Bloques 8-12 — Caja viva y reportes
+- `caja_vivo()` devuelve el turno abierto o el último del día; cash y digital separados.
+- Reportes (jefe) por día/ayer/rango: ventas, cortes más vendidos y mermas, con impresión limpia.
+
+### Bloques 13-14 — Factura térmica y ajuste de stock
+- Factura imprimible tipo ticket 80mm (folio `R-XXXXXX`, corte con kg/precio, pagos, efectivo recibido y cambio); se muestra al cobrar (no auto-impresión) y se reimprime desde Caja; el nombre/dirección/teléfono se configuran en `core/utilidades/negocio.ts`.
+- `actualizar_producto` acepta `p_stock_actual`: al editar, si cambia la existencia se ajusta y se registra como movimiento "Ajuste desde inventario".
+
+**Verificado:** `ng build` compila sin errores.
 
 ---
 
-## 5. Lo que hará el Bloque 3 (en curso)
-
-Todas las escrituras por RPC, todo idempotente y concatenado al final de `schema.sql`.
-
-1. **Nuevas tablas**: `caja` (única por `fecha`), `ventas` + `venta_items`, `desposte` + `desposte_items`. Con RLS.
-2. **RPCs** (security definer):
-   - `abrir_caja(p_efectivo_inicial)` / `cerrar_caja(p_efectivo_final)` — solo jefe.
-   - `registrar_venta(p_items jsonb)` — valida caja abierta, descuenta stock a precio de BD, registra items y actualiza `caja.ventas_total`.
-   - `registrar_merma(p_producto_id, p_cantidad, p_nota)` — cualquier empleado autenticado.
-   - `registrar_desposte(p_origen_id, p_peso_origen, p_destinos jsonb, p_nota)` — jefe; desconta origen y acredita destinos, suma de destinos <= peso origen.
-   - `aplicar_movimiento(...)` helper interno que centraliza el descuento + ledger y evita saldos negativos.
-3. **Vista de inventario vivo** (`/inventario`): filas con alerta sutil Rojo-Buey en stock mínimo, filtros (todo / en mínimo / agotados), buscador y stats.
-4. **Mermas y desposte** (`/mermas`): formulario de merma y conversión pieza-origen => cortes destino, con vista de movimientos recientes.
-5. **Caja diaria** (`/caja`): apertura, ventas del día en tiempo real y cierre de turno con diferencia (esperado vs contado) en Verde Oliva Crudo.
-6. **POS conectado**: el botón `Cobrar` llama a `registrar_venta`, exige caja abierta y muestra el chip de estado de caja.
-7. Navegación superior compartida (`NavComponent`) entre Despacho / Inventario / Mermas / Caja.
-
----
-
-## 6. Próximos bloques (hoja de ruta)
-
-- **Bloque 4 — Acceso y sesión**
-  - Pantalla de inicio de sesión (Supabase Auth), perfil con rol y gestión de carniceros (jefe).
-  - Protección de rutas por rol (`jefe`/`carnicero`).
-- **Bloque 5 — Administración de catálogo**
-  - Alta/edición de productos y categorías, precios de compra/venta, stock mínimo y ubicación.
-  - Ajuste de inventario, órdenes de compra y entradas.
-- **Bloque 6 — Reportes**
-  - Cierre por producto, ventas por carnicero, mermas y conversiones, tendencias y valor de vitrina (Verde Oliva).
-  - Exportación (PDF/CSV) de reportes del día.
-- **Bloque 7 — Publicación**
-  - Configuración de Vercel + variables de entorno, contraseña maestra de Supabase, guardado.
-
----
-
-## 7. Cómo correrlo
+## 5. Cómo correrlo
 
 ```bash
 npm install
@@ -138,15 +120,24 @@ npx ng build       # compilar a dist/
 
 ### Conectar Supabase
 1. Crear proyecto en supabase.com.
-2. Abrir **SQL Editor** y ejecutar `supabase/schema.sql` y después `supabase/seed.sql`.
+2. Abrir **SQL Editor** y ejecutar `supabase/schema.sql` (bloques 1-14) y después `supabase/seed.sql`. Si ya tenías el esquema anterior, corre solo los bloques faltantes en orden (`bloque5.sql` … `bloque14.sql`).
 3. Copiar `Project URL` y `anon public key` a `src/environments/environment.ts`.
-4. Crear un usuario en Auth; su perfil se crea solo (rol por defecto `carnicero`; para roles `jefe`, editar la fila en `profiles`).
+4. Registrar al jefe con la aplicación: la **primera cuenta** tomates el rol `jefe` automáticamente.
 
 > Sin credenciales la app funciona en modo "Primera carga": los estados y el diseño se ven, pero no hay datos.
 
 ---
 
-## 8. Reglas de arquitectura (importantes al continuar)
+## 6. Pendientes opcionales
+
+- Datos reales del negocio en el recibo (`core/utilidades/negocio.ts`).
+- En producción: confirmar el email y que el jefe "reclame" su cuenta (requiere la llave `service_role`, manual desde el dashboard).
+- Folio correlativo por día (hoy es código derivado del id de la venta).
+- Exportación PDF/CSV de reportes.
+
+---
+
+## 7. Reglas de arquitectura (importantes al continuar)
 
 - No editar lo ya entregado de `schema.sql` sin necesidad: **los bloques nuevos se concatenan al final**.
 - Nunca mutar `inventory`, `caja` o `ventas` directo desde el cliente: solo por RPC.
