@@ -28,12 +28,14 @@
           Producto
         </button>
         }
+        @if (esJefe()) {
         <a
           routerLink="/mermas"
           class="flex h-10 items-center gap-2 rounded-control border border-piedra-200 bg-piedra-100/60 px-4 text-sm font-medium text-piedra-700 transition-colors duration-150 ease-soft hover:bg-piedra-200"
         >
           Mermas y desposte
         </a>
+        }
       </div>
       </header>
 
@@ -125,11 +127,17 @@
         <div class="grid gap-2">
           @for (p of filtrados(); track p.id) {
           <div
-            class="flex items-center justify-between gap-4 rounded-panel border px-4 py-3 transition-colors duration-150 ease-soft"
+            (click)="esJefe() ? abrirEdicion(p) : null"
+            role="button"
+            tabindex="0"
+            (keydown.enter)="esJefe() ? abrirEdicion(p) : null"
+            class="group flex cursor-pointer items-center justify-between gap-4 rounded-panel border px-4 py-3 transition-[border-color,background-color,transform] duration-150 ease-soft hover:-translate-y-px"
             [class.border-piedra-200/70]="!(p.en_minimo && p.cantidad > 0) && p.cantidad > 0"
             [class.bg-piedra-100/40]="!(p.en_minimo && p.cantidad > 0) && p.cantidad > 0"
+            [class.hover:border-piedra-300]="!(p.en_minimo && p.cantidad > 0) && p.cantidad > 0"
             [class.border-buey-200]="p.en_minimo && p.cantidad > 0"
             [class.bg-buey-50/70]="p.en_minimo && p.cantidad > 0"
+            [class.hover:border-buey-300]="p.en_minimo && p.cantidad > 0"
             [class.opacity-60]="p.cantidad <= 0"
           >
             <div class="flex min-w-0 items-center gap-3">
@@ -190,6 +198,20 @@
                 @if (p.cantidad <= 0) { Agotado } @else if (p.en_minimo) { En mínimo } @else { En
                 orden }
               </span>
+              <span
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-piedra-200/70 bg-piedra-50 text-piedra-500 transition-colors duration-150 ease-soft group-hover:border-buey-900 group-hover:bg-buey-900 group-hover:text-piedra-50"
+                aria-hidden="true"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M4 20h16M5 17l2-1.5V8h10v7.5L19 17M9 8V6a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6v2M9.5 12v2.5M12 11.5v3M14.5 12v2.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
             </div>
           </div>
           }
@@ -201,15 +223,15 @@
 
   @if (modalAbierto()) {
   <div
-    class="fixed inset-0 z-[50] bg-piedra-950/40 backdrop-blur-[2px]"
+    class="fixed inset-0 z-[60] flex items-center justify-center bg-piedra-950/40 p-4 backdrop-blur-sm"
     (click)="cerrarModal()"
-    aria-hidden="true"
-  ></div>
+  >
   <div
     role="dialog"
     aria-modal="true"
     aria-label="Nuevo producto"
-    class="fixed inset-x-0 bottom-0 z-[60] mx-auto max-w-lg rounded-t-panel border border-piedra-200 bg-piedra-50 p-6 shadow-premium-lg sm:rounded-panel"
+    class="max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-panel border border-piedra-200/80 bg-piedra-50 p-6 shadow-premium-lg"
+    (click)="$event.stopPropagation()"
   >
     <div class="flex items-center justify-between">
       <div>
@@ -249,6 +271,40 @@
         />
       </div>
 
+      <div>
+        <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-foto"
+          >Foto o dirección de imagen (opcional)</label
+        >
+        <input
+          id="alt-foto"
+          type="url"
+          placeholder="https://…"
+          inputmode="url"
+          [value]="formulario().imagenUrl"
+          (input)="campo('imagenUrl', $any($event.target).value)"
+          class="campo font-mono text-sm"
+        />
+        @if (formulario().imagenUrl.trim() && imagenValida()) {
+        <div
+          class="mt-2 flex items-center gap-3 rounded-control border border-piedra-200/80 bg-piedra-100/50 p-2"
+        >
+          <span
+            class="block h-14 w-14 shrink-0 overflow-hidden rounded-[8px] border border-piedra-200/70 bg-piedra-50"
+          >
+            <img
+              src="{{ formulario().imagenUrl.trim() }}"
+              alt="Vista previa"
+              referrerpolicy="no-referrer"
+              class="h-full w-full object-contain"
+            />
+          </span>
+          <span class="truncate text-xs text-piedra-500">{{ formulario().imagenUrl.trim() }}</span>
+        </div>
+        } @else if (formulario().imagenUrl.trim() && !imagenValida()) {
+        <p class="mt-1.5 text-xs text-buey-800">Dirección no válida.</p>
+        }
+      </div>
+
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-cat"
@@ -260,10 +316,29 @@
             (change)="campo('categoriaSlug', $any($event.target).value)"
             class="campo"
           >
+            <option value="" disabled>Elige una categoría</option>
             @for (c of categorias(); track c.slug) {
             <option [value]="c.slug">{{ c.nombre }}</option>
             }
           </select>
+          <div class="mt-2 flex gap-2">
+            <input
+              type="text"
+              maxlength="30"
+              placeholder="Crear categoría nueva"
+              [value]="nuevaCategoria()"
+              (input)="nuevaCategoria.set($any($event.target).value)"
+              class="campo min-w-0 flex-1 !py-2 text-sm"
+            />
+            <button
+              type="button"
+              (click)="guardarCategoria()"
+              [disabled]="!categoriaValida() || creandoCategoria()"
+              class="h-auto shrink-0 rounded-control border border-piedra-200 px-3 text-xs font-medium text-piedra-700 transition-colors duration-150 ease-soft hover:bg-piedra-200 disabled:opacity-40"
+            >
+              {{ creandoCategoria() ? 'Creando…' : 'Crear' }}
+            </button>
+          </div>
         </div>
         <div>
           <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="alt-venta"
@@ -389,5 +464,294 @@
       </div>
     </form>
   </div>
+  </div>
   }
+
+@if (editando(); as p) { @if (formEditar(); as f) {
+<div
+  class="fixed inset-0 z-[60] flex items-center justify-center bg-piedra-950/40 p-4 backdrop-blur-sm"
+  (click)="cerrarEdicion()"
+>
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="Editar producto"
+    class="max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-panel border border-piedra-200/80 bg-piedra-50 p-6 shadow-premium-lg"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="label-mini">Editar corte</p>
+        <h2 class="mt-0.5 font-display text-lg font-semibold tracking-tight text-piedra-950">
+          {{ p.nombre }}
+        </h2>
+      </div>
+      <button
+        (click)="cerrarEdicion()"
+        [disabled]="guardandoEdicion()"
+        aria-label="Cerrar"
+        class="flex h-9 w-9 items-center justify-center rounded-control text-piedra-400 transition-colors duration-150 ease-soft hover:bg-piedra-200 hover:text-piedra-900"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M6 6l12 12M18 6 6 18"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <form class="mt-4 space-y-3.5" (submit)="$event.preventDefault(); guardarEdicion()">
+      <div>
+        <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-nombre"
+          >Nombre</label
+        >
+        <input
+          id="edi-nombre"
+          type="text"
+          placeholder="Ej. Lomo de res"
+          [value]="f.nombre"
+          (input)="campoEditar('nombre', $any($event.target).value)"
+          class="campo"
+        />
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-foto"
+          >Foto o dirección de imagen (opcional)</label
+        >
+        <input
+          id="edi-foto"
+          type="url"
+          placeholder="https://…"
+          inputmode="url"
+          [value]="f.imagenUrl"
+          (input)="campoEditar('imagenUrl', $any($event.target).value)"
+          class="campo font-mono text-sm"
+        />
+        @if (f.imagenUrl.trim() && imagenOk(f.imagenUrl)) {
+        <div
+          class="mt-2 flex items-center gap-3 rounded-control border border-piedra-200/80 bg-piedra-100/50 p-2"
+        >
+          <span
+            class="block h-14 w-14 shrink-0 overflow-hidden rounded-[8px] border border-piedra-200/70 bg-piedra-50"
+          >
+            <img
+              src="{{ f.imagenUrl.trim() }}"
+              alt="Vista previa"
+              referrerpolicy="no-referrer"
+              class="h-full w-full object-contain"
+            />
+          </span>
+          <span class="truncate text-xs text-piedra-500">{{ f.imagenUrl.trim() }}</span>
+        </div>
+        } @else if (f.imagenUrl.trim()) {
+        <p class="mt-1.5 text-xs text-buey-800">Dirección no válida.</p>
+        }
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-cat"
+            >Categoría</label
+          >
+          <select
+            id="edi-cat"
+            [value]="f.categoriaSlug"
+            (change)="campoEditar('categoriaSlug', $any($event.target).value)"
+            class="campo"
+          >
+            @for (c of categorias(); track c.slug) {
+            <option [value]="c.slug">{{ c.nombre }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-venta"
+            >Venta por</label
+          >
+          <select
+            id="edi-venta"
+            [value]="f.modoVenta"
+            (change)="cambiarModoVentaEditar($any($event.target).value)"
+            class="campo"
+          >
+            <option value="unit">Unidad</option>
+            <option value="weight">Peso</option>
+          </select>
+        </div>
+      </div>
+
+      @if (f.modoVenta === 'weight') {
+      <div>
+        <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-medida"
+          >Medida</label
+        >
+        <select
+          id="edi-medida"
+          [value]="f.medida"
+          (change)="campoEditar('medida', $any($event.target).value)"
+          class="campo"
+        >
+          <option value="kg">kg</option>
+          <option value="lb">lb</option>
+        </select>
+      </div>
+      }
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-precio"
+            >Precio venta</label
+          >
+          <input
+            id="edi-precio"
+            type="number"
+            min="0"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="$ 0.00"
+            [value]="f.precio"
+            (input)="campoEditar('precio', $any($event.target).value)"
+            class="campo font-mono tabular-nums"
+          />
+        </div>
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-compra"
+            >Costo</label
+          >
+          <input
+            id="edi-compra"
+            type="number"
+            min="0"
+            step="0.01"
+            inputmode="decimal"
+            placeholder="$ 0.00"
+            [value]="f.precioCompra"
+            (input)="campoEditar('precioCompra', $any($event.target).value)"
+            class="campo font-mono tabular-nums"
+          />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-actual"
+            >Existencia actual</label
+          >
+          <input
+            id="edi-actual"
+            type="number"
+            min="0"
+            step="0.001"
+            inputmode="decimal"
+            placeholder="0"
+            [value]="f.stockActual"
+            (input)="campoEditar('stockActual', $any($event.target).value)"
+            class="campo font-mono tabular-nums"
+          />
+        </div>
+        <div>
+          <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-minimo"
+            >Existencia mínima</label
+          >
+          <input
+            id="edi-minimo"
+            type="number"
+            min="0"
+            step="0.001"
+            inputmode="decimal"
+            placeholder="0"
+            [value]="f.stockMinimo"
+            (input)="campoEditar('stockMinimo', $any($event.target).value)"
+            class="campo font-mono tabular-nums"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-ubicacion"
+          >Ubicación</label
+        >
+        <input
+          id="edi-ubicacion"
+          type="text"
+          placeholder="Ej. Vitrina 2"
+          [value]="f.ubicacion"
+          (input)="campoEditar('ubicacion', $any($event.target).value)"
+          class="campo"
+        />
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-[13px] font-medium text-piedra-700" for="edi-desc"
+          >Descripción (opcional)</label
+        >
+        <input
+          id="edi-desc"
+          type="text"
+          placeholder="Ej. Corte para asar"
+          [value]="f.descripcion"
+          (input)="campoEditar('descripcion', $any($event.target).value)"
+          class="campo"
+        />
+      </div>
+
+      <button
+        type="button"
+        (click)="alternarActivo()"
+        class="flex w-full items-center justify-between rounded-control border px-4 py-3 text-left"
+        [class.border-buey-200]="!f.activo"
+        [class.bg-buey-50/70]="!f.activo"
+        [class.border-oliva-300]="f.activo"
+        [class.bg-oliva-50]="f.activo"
+      >
+        <span class="text-sm font-medium text-piedra-900">
+          {{ f.activo ? 'Visible en vitrina' : 'Oculto de la vitrina' }}
+        </span>
+        <span
+          class="relative h-5 w-9 shrink-0 rounded-full transition-colors duration-150 ease-soft"
+          [class.bg-oliva-600]="f.activo"
+          [class.bg-piedra-300]="!f.activo"
+          aria-hidden="true"
+        >
+          <span
+            class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-[left] duration-150 ease-soft"
+            [class.left-[18px]]="f.activo"
+            [class.left-0.5]="!f.activo"
+          ></span>
+        </span>
+      </button>
+
+      @if (errorEdicion()) {
+      <p
+        class="rounded-control border border-buey-200 bg-buey-50/70 px-3 py-2.5 text-[13px] text-buey-900"
+      >
+        {{ errorEdicion() }}
+      </p>
+      }
+
+      <div class="flex gap-3">
+        <button
+          type="button"
+          (click)="cerrarEdicion()"
+          [disabled]="guardandoEdicion()"
+          class="h-12 flex-1 rounded-control border border-piedra-200 text-sm font-medium text-piedra-700 transition-colors duration-150 ease-soft hover:bg-piedra-200 disabled:opacity-40"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          [disabled]="guardandoEdicion()"
+          class="h-12 flex-[2] rounded-control bg-buey-900 font-display text-[15px] font-semibold text-piedra-50 shadow-premium transition-[transform,background-color,opacity] duration-100 ease-soft hover:bg-buey-800 active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+        >
+          {{ guardandoEdicion() ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+} }
 </div>

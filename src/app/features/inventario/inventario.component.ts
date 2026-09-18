@@ -5,6 +5,7 @@ import { CatalogoService } from '../../core/services/catalogo.service';
 import { AuthService } from '../../core/services/auth.service';
 import { AvisoService } from '../../core/services/aviso.service';
 import { NavComponent } from '../../core/navegacion/nav.component';
+import type { ProductoCatalogo } from '../../core/modelos/catalogo';
 
 type FiltroStock = 'todos' | 'minimo' | 'agotados';
 
@@ -17,18 +18,35 @@ interface FormularioAlta {
   precio: string;
   precioCompra: string;
   cantidadInicial: string;
+  imagenUrl: string;
+}
+
+interface FormularioEditar {
+  nombre: string;
+  descripcion: string;
+  categoriaSlug: string;
+  modoVenta: 'weight' | 'unit';
+  medida: string;
+  precio: string;
+  precioCompra: string;
+  imagenUrl: string;
+  stockMinimo: string;
+  stockActual: string;
+  ubicacion: string;
+  activo: boolean;
 }
 
 function formularioVacio(): FormularioAlta {
   return {
     nombre: '',
     descripcion: '',
-    categoriaSlug: 'res',
+    categoriaSlug: '',
     modoVenta: 'unit',
     medida: 'kg',
     precio: '',
     precioCompra: '',
     cantidadInicial: '',
+    imagenUrl: '',
   };
 }
 
@@ -62,6 +80,28 @@ export class InventarioComponent {
   protected readonly formulario = signal<FormularioAlta>(formularioVacio());
   protected readonly enviando = signal(false);
   protected readonly errores = signal('');
+
+  protected readonly nuevaCategoria = signal('');
+  protected readonly creandoCategoria = signal(false);
+
+  protected readonly editando = signal<ProductoCatalogo | null>(null);
+  protected readonly formEditar = signal<FormularioEditar | null>(null);
+  protected readonly guardandoEdicion = signal(false);
+  protected readonly errorEdicion = signal('');
+
+  protected readonly categoriaValida = computed(() => {
+    const nombre = this.nuevaCategoria().trim();
+    return nombre.length >= 2 && nombre.length <= 30;
+  });
+
+  protected readonly imagenValida = computed(() => {
+    const url = this.formulario().imagenUrl.trim();
+    return url === '' || /^https?:\/\/\S+$/i.test(url);
+  });
+
+  protected imagenOk(url: string): boolean {
+    return /^https?:\/\/\S+$/i.test(url.trim());
+  }
 
   protected readonly enMinimo = computed(
     () => this.productos().filter((p) => p.en_minimo && p.cantidad > 0).length,
@@ -124,10 +164,119 @@ export class InventarioComponent {
     }));
   }
 
+  protected async guardarCategoria(): Promise<void> {
+    if (!this.categoriaValida()) return;
+    this.creandoCategoria.set(true);
+    const res = await this.catalogo.crearCategoria(this.nuevaCategoria());
+    this.creandoCategoria.set(false);
+    if (!res.ok) {
+      this.errores.set(res.error ?? 'No se pudo crear la categoría.');
+      return;
+    }
+    const slug = res.slug;
+    if (slug) {
+      this.formulario.update((f) => ({ ...f, categoriaSlug: slug }));
+    }
+    this.nuevaCategoria.set('');
+    this.errores.set('');
+  }
+
+  protected async abrirEdicion(p: ProductoCatalogo): Promise<void> {
+    if (!this.esJefe()) return;
+    const costo = await this.catalogo.costoDe(p.id);
+    this.editando.set(p);
+    this.formEditar.set({
+      nombre: p.nombre,
+      descripcion: p.descripcion ?? '',
+      categoriaSlug: p.categoria,
+      modoVenta: p.modo_venta,
+      medida: p.medida ?? 'kg',
+      precio: String(p.precio),
+      precioCompra: costo > 0 ? String(costo) : '',
+      imagenUrl: p.imagen_url ?? '',
+      stockMinimo: String(p.minimo),
+      stockActual: String(p.cantidad),
+      ubicacion: p.ubicacion ?? '',
+      activo: true,
+    });
+    this.errorEdicion.set('');
+  }
+
+  protected cerrarEdicion(): void {
+    if (this.guardandoEdicion()) return;
+    this.editando.set(null);
+    this.formEditar.set(null);
+    this.errorEdicion.set('');
+  }
+
+  protected campoEditar(campo: 'nombre' | 'descripcion' | 'categoriaSlug' | 'medida' | 'precio' | 'precioCompra' | 'imagenUrl' | 'stockMinimo' | 'stockActual' | 'ubicacion', valor: string): void {
+    this.formEditar.update((f) => (f ? { ...f, [campo]: valor } : f));
+  }
+
+  protected cambiarModoVentaEditar(valor: string): void {
+    this.formEditar.update((f) =>
+      f
+        ? {
+            ...f,
+            modoVenta: valor === 'weight' ? 'weight' : 'unit',
+            medida: valor === 'weight' ? f.medida || 'kg' : 'kg',
+          }
+        : f,
+    );
+  }
+
+  protected alternarActivo(): void {
+    this.formEditar.update((f) => (f ? { ...f, activo: !f.activo } : f));
+  }
+
+  protected async guardarEdicion(): Promise<void> {
+    const p = this.editando();
+    const f = this.formEditar();
+    if (!p || !f) return;
+    if (!f.nombre.trim()) {
+      this.errorEdicion.set('El nombre es obligatorio.');
+      return;
+    }
+    if (f.imagenUrl.trim() && !/^https?:\/\/\S+$/i.test(f.imagenUrl.trim())) {
+      this.errorEdicion.set('La foto debe ser una dirección http(s) válida.');
+      return;
+    }
+
+    this.guardandoEdicion.set(true);
+    this.errorEdicion.set('');
+    const res = await this.catalogo.actualizarProducto({
+      id: p.id,
+      nombre: f.nombre,
+      descripcion: f.descripcion,
+      categoriaSlug: f.categoriaSlug,
+      modoVenta: f.modoVenta,
+      medida: f.modoVenta === 'weight' ? f.medida : '',
+      precio: numero(f.precio),
+      precioCompra: numero(f.precioCompra) > 0 ? numero(f.precioCompra) : null,
+      imagenUrl: f.imagenUrl,
+      stockMinimo: numero(f.stockMinimo),
+      stockActual: f.stockActual.trim() === '' ? null : numero(f.stockActual),
+      ubicacion: f.ubicacion,
+      activo: f.activo,
+    });
+    this.guardandoEdicion.set(false);
+
+    if (!res.ok) {
+      this.errorEdicion.set(res.error ?? 'No se pudo guardar.');
+      return;
+    }
+    this.aviso.mostrar(`${f.nombre.trim()} actualizado`, 'ok');
+    this.cerrarEdicion();
+  }
+
   protected async guardarAlta(): Promise<void> {
     const f = this.formulario();
     if (!f.nombre.trim()) {
       this.errores.set('El nombre es obligatorio.');
+      return;
+    }
+    if (!this.imagenValida()) {
+      this.errores.set('La foto debe ser una dirección http(s) válida.');
       return;
     }
     const cantidad = numero(f.cantidadInicial);
@@ -144,6 +293,7 @@ export class InventarioComponent {
       precio,
       precioCompra: numero(f.precioCompra),
       cantidadInicial: cantidad,
+      imagenUrl: f.imagenUrl,
     });
     this.enviando.set(false);
 

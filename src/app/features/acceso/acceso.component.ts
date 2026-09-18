@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { AvisoService } from '../../core/services/aviso.service';
+import { aplicarTemaInicial } from '../../core/utilidades/tema';
 import type { ResultadoOperacion } from '../../core/modelos/operaciones';
 
 type ModoAcceso = 'crear' | 'entrar';
@@ -26,9 +27,7 @@ export class AccesoComponent {
   protected readonly listo = this.auth.lista;
 
   constructor() {
-    const guardado =
-      typeof localStorage !== 'undefined' && localStorage.getItem('corte-tema') === 'oscuro';
-    document.documentElement.classList.toggle('dark', guardado);
+    aplicarTemaInicial();
   }
 
   protected electronica(): void {

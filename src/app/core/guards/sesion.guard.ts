@@ -15,3 +15,10 @@ export const sesionInactiva = async (): Promise<boolean | UrlTree> => {
   await auth.cuandoListo();
   return auth.sesion() ? router.createUrlTree(['/']) : true;
 };
+
+export const soloJefe = async (): Promise<boolean | UrlTree> => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  await auth.cuandoListo();
+  return auth.sesion()?.rol === 'jefe' ? true : router.createUrlTree(['/']);
+};

@@ -1,4 +1,7 @@
-<div class="flex h-dvh flex-col bg-piedra-50 text-piedra-900">
+<div
+  class="flex h-dvh flex-col bg-piedra-50 text-piedra-900"
+  [class.no-imprimir]="reciboVenta() !== null"
+>
   <app-nav />
 
   <main class="min-h-0 flex-1 overflow-y-auto">
@@ -105,16 +108,39 @@
               </p>
             </div>
             <div>
-              <p class="label-mini">Ventas</p>
+              <p class="label-mini">Total vendido</p>
               <p class="mt-1 font-mono text-lg font-medium tabular-nums text-oliva-700">
                 $ {{ c.ventas_total | number: '1.2-2' }}
               </p>
             </div>
             <div>
-              <p class="label-mini">Esperado</p>
+              <p class="label-mini">Esperado en caja</p>
               <p class="mt-1 font-mono text-lg font-medium tabular-nums text-piedra-950">
                 $ {{ esperado() | number: '1.2-2' }}
               </p>
+            </div>
+          </div>
+
+          <div
+            class="mt-4 grid grid-cols-2 gap-3 rounded-control border border-piedra-200/70 bg-piedra-100/50 p-4 font-mono text-sm tabular-nums"
+          >
+            <div class="flex items-center justify-between text-piedra-600">
+              <span class="flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-oliva-600" aria-hidden="true"></span>
+                Efectivo cobrado
+              </span>
+              <span class="font-medium text-piedra-950">
+                $ {{ (c.efectivo_cobrado ?? 0) | number: '1.2-2' }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between text-piedra-600">
+              <span class="flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-buey-600" aria-hidden="true"></span>
+                Tarjeta / transferencia
+              </span>
+              <span class="font-medium text-piedra-950">
+                $ {{ (c.digital_cobrado ?? 0) | number: '1.2-2' }}
+              </span>
             </div>
           </div>
 
@@ -129,13 +155,49 @@
             } @else {
             <ul class="mt-2 divide-y divide-piedra-200/70">
               @for (v of ventasHoy(); track v.id) {
-              <li class="flex items-center justify-between py-2">
-                <span class="font-mono text-xs tabular-nums text-piedra-500">
-                  {{ v.created_at | date: 'HH:mm' }}
-                </span>
-                <span class="font-mono text-sm font-medium tabular-nums text-piedra-950">
-                  $ {{ v.subtotal | number: '1.2-2' }}
-                </span>
+              <li class="flex items-center justify-between gap-3 py-2.5">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-xs tabular-nums text-piedra-500">
+                      {{ v.created_at | date: 'HH:mm' }}
+                    </span>
+                    @if (v.anulada) {
+                    <span
+                      class="rounded-full border border-buey-300 bg-buey-50/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-buey-900"
+                    >
+                      Anulada
+                    </span>
+                    }
+                  </div>
+                  <p class="mt-0.5 truncate text-xs text-piedra-600">
+                    {{ v.carnicero }} · {{ resumenArticulos(v) }}
+                  </p>
+                  <p class="mt-0.5 text-[11px] font-medium text-buey-700">
+                    {{ etiquetaPagos(v) }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span
+                    class="font-mono text-sm font-medium tabular-nums"
+                    [class.text-piedra-950]="!v.anulada"
+                    [class.text-piedra-400]="v.anulada"
+                  >
+                    $ {{ v.subtotal | number: '1.2-2' }}
+                  </span>
+                  @if (esJefe() && cajaAbierta() && !v.anulada) {
+                  <button
+                    (click)="anular(v)"
+                    class="rounded-control border px-2.5 py-1 text-[11px] font-medium transition-colors duration-150 ease-soft"
+                    [class.border-buey-300]="anulandoId() !== v.id"
+                    [class.text-buey-800]="anulandoId() !== v.id"
+                    [class.bg-buey-900]="anulandoId() === v.id"
+                    [class.border-buey-900]="anulandoId() === v.id"
+                    [class.text-piedra-50]="anulandoId() === v.id"
+                  >
+                    {{ anulandoId() === v.id ? 'Confirmar' : 'Anular' }}
+                  </button>
+                  }
+                </div>
               </li>
               }
             </ul>
@@ -213,10 +275,286 @@
               </span>
             </div>
           </div>
+
+          <button
+            (click)="reabrir()"
+            [disabled]="reabriendo()"
+            class="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-control bg-buey-900 font-display text-[15px] font-semibold text-piedra-50 shadow-total transition-[transform,background-color] duration-100 ease-soft hover:bg-buey-800 active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M20 12a8 8 0 1 1-2.3-5.6M20 3.5V8h-4.5"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            {{ reabriendo() ? 'Reabriendo…' : 'Reabrir caja del día' }}
+          </button>
           }
         </div>
+      </section>
+      }
+    @if (esJefe()) {
+      <section
+        class="mt-6 rounded-panel border border-piedra-200/70 bg-piedra-100/40 p-5 shadow-premium-sm"
+      >
+        <h2 class="font-display text-base font-semibold text-piedra-950">
+          Historial de caja
+        </h2>
+        <p class="mt-1 text-xs leading-relaxed text-piedra-500">
+          Turnos anteriores y su cierre, para auditarlos cuando quieras.
+        </p>
+
+        @if (historial().length === 0) {
+        <p class="mt-4 rounded-control border border-dashed border-piedra-300 px-3 py-4 text-center text-xs text-piedra-500">
+          No hay turnos registrados todavía.
+        </p>
+        } @else {
+        <div class="mt-4 overflow-x-auto">
+          <table class="w-full min-w-[560px] border-collapse text-left">
+            <thead>
+              <tr class="border-b border-piedra-200/70 text-[11px] font-semibold uppercase tracking-wider text-piedra-500">
+                <th class="pb-2.5 pr-3">Fecha</th>
+                <th class="pb-2.5 pr-3">Estado</th>
+                <th class="pb-2.5 pr-3 text-right">Inicial</th>
+                <th class="pb-2.5 pr-3 text-right">Ventas</th>
+                <th class="pb-2.5 pr-3 text-right">Efectivo final</th>
+                <th class="pb-2.5 text-right">Detalle</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-piedra-200/70">
+              @for (t of historial(); track t.id) {
+              <tr
+                (click)="!t.abierta && verTurno(t)"
+                [class.cursor-pointer]="!t.abierta"
+                [class.transition-colors]="true"
+                [class.hover:bg-piedra-100/60]="!t.abierta"
+              >
+                <td class="py-2.5 pr-3 font-mono text-xs tabular-nums text-piedra-700">
+                  {{ t.fecha }}
+                </td>
+                <td class="py-2.5 pr-3">
+                  <span
+                    class="inline-flex items-center gap-1.5 text-[11px] font-medium"
+                    [class.text-oliva-700]="t.abierta"
+                    [class.text-piedra-500]="!t.abierta"
+                  >
+                    <span
+                      class="h-1.5 w-1.5 rounded-full"
+                      [class.bg-oliva-600]="t.abierta"
+                      [class.bg-piedra-400]="!t.abierta"
+                      aria-hidden="true"
+                    ></span>
+                    {{ t.abierta ? 'Abierta' : 'Cerrada' }}
+                  </span>
+                </td>
+                <td class="py-2.5 pr-3 text-right font-mono text-xs tabular-nums text-piedra-600">
+                  $ {{ t.efectivo_inicial | number: '1.2-2' }}
+                </td>
+                <td class="py-2.5 pr-3 text-right font-mono text-xs tabular-nums text-oliva-700">
+                  $ {{ t.ventas_total | number: '1.2-2' }}
+                </td>
+                <td class="py-2.5 text-right font-mono text-xs tabular-nums text-piedra-900">
+                  $ {{ (t.efectivo_final ?? 0) | number: '1.2-2' }}
+                </td>
+                <td class="py-2.5 pl-3 text-right">
+                  @if (!t.abierta) {
+                  <span
+                    class="text-[11px] font-semibold uppercase tracking-wide text-buey-700"
+                  >
+                    Ver y cerrar
+                  </span>
+                  }
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
       </section>
       }
     </div>
   </main>
 </div>
+
+@if (detalleTurno(); as t) {
+<div
+  class="no-imprimir fixed inset-0 z-50 flex items-center justify-center bg-piedra-950/40 p-4 backdrop-blur-sm"
+  (click)="cerrarDetalle()"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Detalle de turno"
+>
+  <div
+    class="flex max-h-[88dvh] w-full max-w-2xl flex-col overflow-hidden rounded-panel border border-piedra-200/80 bg-piedra-50 shadow-premium-lg"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="flex items-center justify-between border-b border-piedra-200/80 px-6 py-4">
+      <div class="flex flex-col leading-none">
+        <p class="label-mini">Turno del {{ t.fecha }}</p>
+        <h2 class="mt-1 font-display text-lg font-semibold tracking-tight text-piedra-950">
+          Detalle de caja
+        </h2>
+      </div>
+      <button
+        (click)="cerrarDetalle()"
+        aria-label="Cerrar"
+        class="flex h-8 w-8 items-center justify-center rounded-full text-piedra-400 transition-colors duration-150 ease-soft hover:bg-piedra-100 hover:text-piedra-700"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M6 6l12 12M18 6 6 18"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </header>
+
+    <div class="grid grid-cols-2 gap-3 px-6 py-5 sm:grid-cols-4">
+      <div>
+        <p class="label-mini">Efectivo inicial</p>
+        <p class="mt-1 font-mono text-lg font-medium tabular-nums text-piedra-900">
+          $ {{ t.efectivo_inicial | number: '1.2-2' }}
+        </p>
+      </div>
+      <div>
+        <p class="label-mini">Total vendido</p>
+        <p class="mt-1 font-mono text-lg font-medium tabular-nums text-oliva-700">
+          $ {{ t.ventas_total | number: '1.2-2' }}
+        </p>
+      </div>
+      <div>
+        <p class="label-mini">Esperado en caja</p>
+        <p class="mt-1 font-mono text-lg font-medium tabular-nums text-piedra-950">
+          $ {{ detalleEsperado() | number: '1.2-2' }}
+        </p>
+      </div>
+      <div>
+        <p class="label-mini">Efectivo contado</p>
+        <p class="mt-1 font-mono text-lg font-medium tabular-nums text-piedra-900">
+          $ {{ (t.efectivo_final ?? 0) | number: '1.2-2' }}
+        </p>
+      </div>
+    </div>
+
+    <div
+      class="mx-6 grid grid-cols-2 gap-3 rounded-control border border-piedra-200/70 bg-piedra-100/50 p-4 font-mono text-sm tabular-nums"
+    >
+      <div class="flex items-center justify-between text-piedra-600">
+        <span class="flex items-center gap-1.5">
+          <span class="h-2 w-2 rounded-full bg-oliva-600" aria-hidden="true"></span>
+          Efectivo
+        </span>
+        <span class="font-medium text-piedra-950">
+          $ {{ (t.efectivo_cobrado ?? 0) | number: '1.2-2' }}
+        </span>
+      </div>
+      <div class="flex items-center justify-between text-piedra-600">
+        <span class="flex items-center gap-1.5">
+          <span class="h-2 w-2 rounded-full bg-buey-600" aria-hidden="true"></span>
+          Tarjeta / transferencia
+        </span>
+        <span class="font-medium text-piedra-950">
+          $ {{ (t.digital_cobrado ?? 0) | number: '1.2-2' }}
+        </span>
+      </div>
+      <div class="col-span-2 flex items-center justify-between text-piedra-600">
+        <span>Diferencia</span>
+        <span
+          class="text-base font-medium"
+          [class.text-oliva-700]="detalleDiferencia() >= 0"
+          [class.text-buey-800]="detalleDiferencia() < 0"
+        >
+          @if (detalleDiferencia() >= 0) { + }$ {{ detalleDiferencia() | number: '1.2-2' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="min-h-0 flex-1 overflow-y-auto border-t border-piedra-200/80 px-6 py-5">
+      <p class="label-mini">Ventas del turno</p>
+      @if (cargandoDetalle()) {
+      <div class="mt-3 space-y-2">
+        <div class="h-12 animate-pulse rounded-control border border-piedra-200/60 bg-piedra-100/40"></div>
+        <div class="h-12 animate-pulse rounded-control border border-piedra-200/60 bg-piedra-100/40"></div>
+      </div>
+      } @else if (ventasDetalle().length === 0) {
+      <p
+        class="mt-3 rounded-control border border-dashed border-piedra-300 px-3 py-4 text-center text-xs text-piedra-500"
+      >
+        Este turno no registró ventas.
+      </p>
+      } @else {
+      <ul class="mt-2 divide-y divide-piedra-200/70">
+        @for (v of ventasDetalle(); track v.id) {
+        <li class="flex items-center justify-between gap-3 py-2.5">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs tabular-nums text-piedra-500">
+                {{ v.created_at | date: 'HH:mm' }}
+              </span>
+              @if (v.anulada) {
+              <span
+                class="rounded-full border border-buey-300 bg-buey-50/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-buey-900"
+              >
+                Anulada
+              </span>
+              }
+            </div>
+            <p class="mt-0.5 truncate text-xs text-piedra-600">
+              {{ v.carnicero }} · {{ resumenArticulos(v) }}
+            </p>
+            <p class="mt-0.5 text-[11px] font-medium text-buey-700">
+              {{ etiquetaPagos(v) }}
+            </p>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <button
+              (click)="reciboVenta.set(v)"
+              aria-label="Recibo de la venta"
+              class="flex h-8 items-center gap-1.5 rounded-control border border-piedra-200 bg-piedra-100/60 px-2.5 text-[11px] font-medium text-piedra-700 transition-colors duration-150 ease-soft hover:bg-piedra-200"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 13h10v8H7z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Recibo
+            </button>
+            <span
+              class="shrink-0 font-mono text-sm font-medium tabular-nums"
+              [class.text-piedra-950]="!v.anulada"
+              [class.text-piedra-400]="v.anulada"
+            >
+              $ {{ v.subtotal | number: '1.2-2' }}
+            </span>
+          </div>
+        </li>
+        }
+      </ul>
+      }
+    </div>
+
+    <footer class="flex items-center justify-end border-t border-piedra-200/80 px-6 py-4">
+      <button
+        (click)="cerrarDetalle()"
+        class="h-11 rounded-control border border-piedra-200 bg-piedra-100/60 px-5 font-display text-sm font-semibold text-piedra-700 transition-colors duration-150 ease-soft hover:bg-piedra-200"
+      >
+        Cerrar
+      </button>
+    </footer>
+  </div>
+</div>
+}
+
+@if (reciboVenta(); as recibo) {
+<app-recibo [venta]="recibo" (cerrarAccion)="reciboVenta.set(null)" />
+}

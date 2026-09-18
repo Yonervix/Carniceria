@@ -5,6 +5,7 @@ export interface ProductoCatalogo {
   id: string;
   nombre: string;
   descripcion: string | null;
+  imagen_url: string | null;
   modo_venta: ModoVenta;
   medida: Medida | null;
   precio: number;

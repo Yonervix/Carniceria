@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { sesionActiva, sesionInactiva } from './core/guards/sesion.guard';
+import { sesionActiva, sesionInactiva, soloJefe } from './core/guards/sesion.guard';
 
 export const routes: Routes = [
   {
@@ -17,11 +17,23 @@ export const routes: Routes = [
     path: 'mermas',
     loadComponent: () =>
       import('./features/mermas/mermas.component').then((m) => m.MermasComponent),
-    canActivate: [sesionActiva],
+    canActivate: [sesionActiva, soloJefe],
+  },
+  {
+    path: 'reportes',
+    loadComponent: () =>
+      import('./features/reportes/reportes.component').then((m) => m.ReportesComponent),
+    canActivate: [sesionActiva, soloJefe],
   },
   {
     path: 'caja',
     loadComponent: () => import('./features/caja/caja.component').then((m) => m.CajaComponent),
+    canActivate: [sesionActiva],
+  },
+  {
+    path: 'cuentas',
+    loadComponent: () =>
+      import('./features/cuentas/cuentas.component').then((m) => m.CuentasComponent),
     canActivate: [sesionActiva],
   },
   {

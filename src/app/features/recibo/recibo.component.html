@@ -1,0 +1,151 @@
+@if (venta(); as v) {
+<div
+  class="recibo-modal fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-piedra-950/40 p-4 backdrop-blur-sm sm:py-10"
+  (click)="cerrarAccion.emit()"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Recibo de la venta"
+>
+  <div
+    class="recibo-panel w-full max-w-[330px] overflow-hidden rounded-panel border border-piedra-200/80 bg-piedra-50 shadow-premium-lg"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="no-imprimir flex items-center justify-between border-b border-piedra-200/80 px-5 py-3.5">
+      <p class="label-mini">Factura {{ folio(v) }}</p>
+      <button
+        (click)="cerrarAccion.emit()"
+        aria-label="Cerrar"
+        class="flex h-8 w-8 items-center justify-center rounded-full text-piedra-400 transition-colors duration-150 ease-soft hover:bg-piedra-100 hover:text-piedra-700"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M6 6l12 12M18 6 6 18"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <div class="recibo-impreso bg-white px-[6mm] py-[5mm] font-mono text-[12px] leading-[1.5] text-piedra-950">
+      <header>
+        <p class="font-display text-center text-[16px] font-bold uppercase leading-tight tracking-tight">
+          {{ negocio.nombre }}
+        </p>
+        @if (negocio.direccion) {
+        <p class="mt-1 text-center text-[10px] leading-tight text-piedra-600">{{ negocio.direccion }}</p>
+        }
+        @if (negocio.telefono) {
+        <p class="text-center text-[10px] leading-tight text-piedra-600">Tel: {{ negocio.telefono }}</p>
+        }
+        <div class="mt-2.5 text-[11px] leading-relaxed text-piedra-800">
+          <p>{{ v.created_at | date: 'dd/MM/yy HH:mm' }}</p>
+          <p>Factura: {{ folio(v) }}</p>
+          <p>Atendió: {{ v.carnicero }}</p>
+        </div>
+      </header>
+
+      <div class="my-2.5 border-t border-dashed border-piedra-300"></div>
+
+      @if (v.anulada) {
+      <p class="text-center font-display text-[14px] font-bold text-buey-800">
+        ** ANULADA **
+      </p>
+      @if (v.motivo_anulacion) {
+      <p class="mt-1 text-center text-[11px] text-piedra-600">{{ v.motivo_anulacion }}</p>
+      }
+      <div class="my-2.5 border-t border-dashed border-piedra-300"></div>
+      }
+
+      <div class="flex items-center justify-between border-b border-dashed border-piedra-300 pb-1 text-[10px] font-bold uppercase tracking-wider text-piedra-600">
+        <span>Cant</span>
+        <span class="flex-1 px-1">Descripción</span>
+        <span>Importe</span>
+      </div>
+
+      <ul class="divide-y divide-dashed">
+        @for (a of v.articulos; track $index) {
+        <li class="py-2">
+          <div class="flex items-start justify-between gap-2 text-[12px]">
+            <span class="min-w-0 flex-1 leading-snug">{{ a.nombre }}</span>
+            <span class="shrink-0 font-semibold tabular-nums">
+              $ {{ a.subtotal | number: '1.2-2' }}
+            </span>
+          </div>
+          <p class="mt-0.5 text-[11px] tabular-nums text-piedra-600">
+            {{ cantidadLinea(a) }} × $ {{ (a.precio ?? a.subtotal) | number: '1.2-2' }}
+          </p>
+        </li>
+        }
+      </ul>
+
+      <div class="mt-1 border-t border-dashed border-piedra-300"></div>
+
+      <div class="flex items-center justify-between gap-2 pt-2">
+        <span class="font-display text-[13px] font-bold uppercase tracking-wide">Total</span>
+        <span class="text-[15px] font-bold tabular-nums">
+          $ {{ v.subtotal | number: '1.2-2' }}
+        </span>
+      </div>
+
+      <div class="mt-3 border-t border-dashed border-piedra-300"></div>
+
+      @for (p of v.pagos ?? []; track p.metodo) {
+      <div class="flex items-center justify-between text-[11px] tabular-nums text-piedra-800">
+        <span>{{ nombreMetodo(p.metodo) }}</span>
+        <span>$ {{ p.monto | number: '1.2-2' }}</span>
+      </div>
+      }
+
+      @if ((v.efectivo_recibido ?? 0) > 0) {
+      <div class="mt-1.5 flex items-center justify-between text-[11px] tabular-nums text-piedra-800">
+        <span>Efectivo recibido</span>
+        <span>$ {{ v.efectivo_recibido | number: '1.2-2' }}</span>
+      </div>
+      <div class="flex items-center justify-between text-[11px] tabular-nums text-piedra-800">
+        <span>Cambio</span>
+        <span>$ {{ (v.vuelto ?? 0) | number: '1.2-2' }}</span>
+      </div>
+      }
+
+      @if (v.cliente_id && v.cliente) {
+      <div class="mt-1.5 flex items-center justify-between text-[11px] tabular-nums text-piedra-800">
+        <span>A cuenta de</span>
+        <span>{{ v.cliente }}</span>
+      </div>
+      }
+
+      <div class="my-2.5 border-t border-dashed border-piedra-300"></div>
+
+      <p class="text-center font-display text-[13px] font-semibold tracking-tight">
+        ¡Gracias por tu compra!
+      </p>
+    </div>
+
+    <div class="no-imprimir flex gap-3 border-t border-piedra-200/80 px-5 py-4">
+      <button
+        (click)="cerrarAccion.emit()"
+        class="h-11 flex-1 rounded-control border border-piedra-200 bg-piedra-100/60 font-display text-sm font-semibold text-piedra-700 transition-colors duration-150 ease-soft hover:bg-piedra-200"
+      >
+        Cerrar
+      </button>
+      <button
+        (click)="imprimir()"
+        class="flex h-11 flex-1 items-center justify-center gap-2 rounded-control bg-buey-900 font-display text-sm font-semibold text-piedra-50 shadow-total transition-[transform,background-color] duration-100 ease-soft hover:bg-buey-800 active:scale-[0.98]"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 13h10v8H7z"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        Imprimir
+      </button>
+    </div>
+  </div>
+</div>
+}
